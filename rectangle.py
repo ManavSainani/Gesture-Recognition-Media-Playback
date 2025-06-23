@@ -1,68 +1,52 @@
 import cv2
 import mediapipe as mp
 
-# Init
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 
-# Open webcam
 cap = cv2.VideoCapture(0)
 
-# Safety check
-if not cap.isOpened():
-    print("Camera failed to open.")
-    exit()
-
-# MediaPipe Hands
-with mp_hands.Hands(static_image_mode=False,
-                    max_num_hands=1,
+with mp_hands.Hands(max_num_hands=1,
                     min_detection_confidence=0.7,
                     min_tracking_confidence=0.7) as hands:
 
     while True:
-        success, frame = cap.read()
-        if not success:
-            continue
+        ret, frame = cap.read()
+        if not ret:
+            break
 
         frame = cv2.flip(frame, 1)
         h, w, _ = frame.shape
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = hands.process(rgb)
+        result = hands.process(rgb)
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                # Draw landmarks
+        if result.multi_hand_landmarks:
+            for hand_landmarks in result.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-                # Convert to pixel coords
-                pixel_coords = []
+                # Print all landmark positions
+                coords = []
                 for lm in hand_landmarks.landmark:
-                    x_px = int(lm.x * w)
-                    y_px = int(lm.y * h)
-                    pixel_coords.append((x_px, y_px))
+                    x, y = int(lm.x * w), int(lm.y * h)
+                    coords.append((x, y))
+                    cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)
 
-                # Unpack coords
-                x_vals = [pt[0] for pt in pixel_coords]
-                y_vals = [pt[1] for pt in pixel_coords]
+                # Draw bounding box only if all 21 points exist
+                if len(coords) == 21:
+                    xs, ys = zip(*coords)
+                    x_min, x_max = min(xs), max(xs)
+                    y_min, y_max = min(ys), max(ys)
 
-                # Get bounding box corners
-                x_min, x_max = min(x_vals), max(x_vals)
-                y_min, y_max = min(y_vals), max(y_vals)
+                    print(f"x_min: {x_min}, x_max: {x_max}, y_min: {y_min}, y_max: {y_max}")
 
-                # Print for debug
-                print(f"Box: Top-left ({x_min},{y_min}) → Bottom-right ({x_max},{y_max})")
+                    # Only draw if box has size
+                    if x_max - x_min > 10 and y_max - y_min > 10:
+                        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+                        cv2.circle(frame, (x_min, y_min), 6, (255, 0, 0), -1)  # Top-left
+                        cv2.circle(frame, (x_max, y_max), 6, (0, 255, 255), -1)  # Bottom-right
 
-                # DEBUG: draw corner points
-                cv2.circle(frame, (x_min, y_min), 8, (0, 0, 255), -1)  # Red dot
-                cv2.circle(frame, (x_max, y_max), 8, (255, 0, 0), -1)  # Blue dot
+        cv2.imshow("Debug Hand Box", frame)
 
-                # Draw rectangle
-                cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 3)
-
-        # Show frame
-        cv2.imshow("Hand with Box", frame)
-
-        # Exit on 'q'
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
