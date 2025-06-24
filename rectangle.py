@@ -8,7 +8,7 @@ mp_drawing = mp.solutions.drawing_utils
 # Open webcam
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
-    print("❌ Cannot open webcam")
+    print("Cannot open webcam")
     exit()
 
 with mp_hands.Hands(
