@@ -1,69 +1,70 @@
 import cv2
 import mediapipe as mp
+import pygame
+import time
 
-# Setup
+# Initialize Pygame mixer
+pygame.mixer.init()
+pygame.mixer.music.load("/Users/manavsainani/Desktop/Tate\ McRae\ -\ Just\ Keep\ Watching\ \(From\ F1\ The\ Movie\)\ \(Official\ Video\).mp3")
+
+# Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
+hands = mp_hands.Hands(min_detection_confidence=0.7)
+mp_draw = mp.solutions.drawing_utils
 
-# Open webcam
+# Start webcam
 cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Cannot open webcam")
-    exit()
+is_playing = False
 
-with mp_hands.Hands(
-    static_image_mode=False,
-    max_num_hands=1,
-    min_detection_confidence=0.7,
-    min_tracking_confidence=0.7) as hands:
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            continue
+def fingers_up(hand_landmarks):
+    tips_ids = [4, 8, 12, 16, 20]  # Thumb, Index, Middle, Ring, Pinky
+    fingers = []
 
-        frame = cv2.flip(frame, 1)
-        h, w, _ = frame.shape
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Thumb
+    if hand_landmarks.landmark[4].x < hand_landmarks.landmark[3].x:
+        fingers.append(1)  # Thumb up
+    else:
+        fingers.append(0)
 
-        results = hands.process(rgb)
-
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
-                # Gather all (x, y) points
-                coords = []
-                for lm in hand_landmarks.landmark:
-                    x_px = int(lm.x * w)
-                    y_px = int(lm.y * h)
-                    coords.append((x_px, y_px))
-                    cv2.circle(frame, (x_px, y_px), 2, (0, 0, 255), -1)
-
-                # DEBUG PRINT
-                print("Landmark coordinates:")
-                for pt in coords:
-                    print(pt)
-
-                if coords:
-                    xs = [x for x, _ in coords]
-                    ys = [y for _, y in coords]
-                    x_min, x_max = min(xs), max(xs)
-                    y_min, y_max = min(ys), max(ys)
-
-                    print(f"Bounding box: ({x_min},{y_min}) to ({x_max},{y_max})")
-
-                    # Draw bounding box and corner dots
-                    cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-                    cv2.circle(frame, (x_min, y_min), 6, (255, 0, 0), -1)   # blue dot
-                    cv2.circle(frame, (x_max, y_max), 6, (0, 255, 255), -1) # yellow dot
+    # Other fingers
+    for tip_id in tips_ids[1:]:
+        if hand_landmarks.landmark[tip_id].y < hand_landmarks.landmark[tip_id - 2].y:
+            fingers.append(1)
         else:
-            print("No hand detected.")
+            fingers.append(0)
 
-        cv2.imshow("Hand Bounding Box", frame)
+    return fingers
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+
+while True:
+    ret, frame = cap.read()
+    frame = cv2.flip(frame, 1)
+    h, w, _ = frame.shape
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    result = hands.process(rgb)
+
+    if result.multi_hand_landmarks:
+        for handLms in result.multi_hand_landmarks:
+            mp_draw.draw_landmarks(frame, handLms, mp_hands.HAND_CONNECTIONS)
+            finger_state = fingers_up(handLms)
+
+            if finger_state == [1, 0, 0, 0, 0]:  # Thumb up
+                if not is_playing:
+                    pygame.mixer.music.play()
+                    is_playing = True
+                    print("Playing")
+
+            elif finger_state == [0, 0, 0, 0, 0]:  # Fist
+                if is_playing:
+                    pygame.mixer.music.pause()
+                    is_playing = False
+                    print("Paused")
+
+    cv2.imshow("Hand Control", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
 cap.release()
 cv2.destroyAllWindows()
+pygame.mixer.music.stop()
