@@ -59,7 +59,7 @@ def classify_gesture(finger_state):
 def play_track(index):
     pygame.mixer.music.load(playlist[index])
     pygame.mixer.music.play()
-    print(f"▶️ Playing: {os.path.basename(playlist[index])}")
+    print(f"Playing: {os.path.basename(playlist[index])}")
 
 while True:
     ret, frame = cap.read()
