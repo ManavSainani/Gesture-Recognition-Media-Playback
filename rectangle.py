@@ -5,7 +5,8 @@ import time
 
 # Initialize Pygame mixer
 pygame.mixer.init()
-pygame.mixer.music.load("/Users/manavsainani/Desktop/Tate\ McRae\ -\ Just\ Keep\ Watching\ \(From\ F1\ The\ Movie\)\ \(Official\ Video\).mp3")
+pygame.mixer.music.load(r"/Users/manavsainani/Desktop/Tate McRae - Just Keep Watching (From F1 The Movie) (Official Video).mp3")
+pygame.mixer.music.set_volume(1.0)  # Max volume
 
 # Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
